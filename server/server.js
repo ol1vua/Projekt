@@ -8,6 +8,20 @@ app.use(express.json());
 const dbPath = path.join(__dirname, 'database.db');
 const db = new sqlite3.Database(dbPath);
 
+const fs = require('fs');
+
+// Odczytanie pliku schema.sql i uruchomienie go w bazie danych
+const schemaPath = path.join(__dirname, 'schema.sql');
+const schema = fs.readFileSync(schemaPath, 'utf8');
+
+db.exec(schema, (err) => {
+    if (err) {
+        console.error("Błąd podczas odtwarzania struktury bazy danych z pliku schema.sql:", err);
+    } else {
+        console.log("Struktura bazy danych (3 tabele, relacje, indeksy) została pomyślnie zainicjalizowana.");
+    }
+});
+
 // 1. READ (Odczyt): Pobieranie ofert pracy
 app.get('/api/jobs', (req, res) => {
     db.all(`SELECT * FROM jobs`, [], (err, rows) => {
@@ -92,3 +106,24 @@ app.delete('/api/swipe/:id', (req, res) => {
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Serwer IT-Tinder działa na porcie ${PORT}`));
+
+// Pobieranie wszystkich "polubionych" ofert przez danego użytkownika z użyciem INNER JOIN
+app.get('/api/users/:userId/matches', (req, res) => {
+    const { userId } = req.params;
+
+    // Zapytanie łączące tabelę swipes z tabelą jobs na podstawie klucza obcego job_id
+    const query = `
+        SELECT jobs.id, jobs.title, jobs.company, jobs.technologies, jobs.salary, swipes.status
+        FROM swipes
+        INNER JOIN jobs ON swipes.job_id = jobs.id
+        WHERE swipes.user_id = ? AND swipes.status = 'like'
+    `;
+
+    db.all(query, [userId], (err, rows) => {
+        if (err) {
+            return res.status(500).json({ error: "Błąd serwera podczas wykonywania zapytania JOIN." });
+        }
+        // Zwracamy dopasowane oferty w formacie JSON
+        res.status(200).json(rows);
+    });
+});
