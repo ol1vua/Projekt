@@ -1,45 +1,79 @@
 import { useState } from 'react';
 
-export default function Register({ onSwitch }) {
+export default function Register({ onRegisterSuccess, onSwitchToLogin }) {
     const [username, setUsername] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
 
-    const handleRegister = async (e) => {
-        e.preventDefault(); // Obsługa zdarzenia - blokada przeładowania strony
+    const handleSubmit = async (e) => {
+        e.preventDefault();
         setError('');
         setSuccess('');
 
-        // Walidacja formularza po stronie klienta (Lab 2-5)
-        if (username.trim().length < 3) {
-            setError("Nazwa użytkownika musi mieć minimum 3 znaki!");
-            return;
-        }
-        if (password.length < 6) {
-            setError("Hasło musi mieć minimum 6 znaków!");
+        if (!username || !email || !password) {
+            setError('Uzupełnij wszystkie pola!');
             return;
         }
 
-        // Jeśli walidacja przeszła pomyślnie:
-        setSuccess("Walidacja klienta pomyślna! Dane są gotowe do wysłania.");
-        
-        // Tutaj w kolejnych krokach dodamy fetch do serwera
+        try {
+            const response = await fetch('http://localhost:5000/api/auth/register', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, email, password })
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.error || 'Błąd podczas rejestracji');
+            }
+
+            setSuccess('Konto utworzone pomyślnie! Możesz się zalogować.');
+            setTimeout(() => onRegisterSuccess(), 2000);
+        } catch (err) {
+            setError(err.message);
+        }
     };
 
     return (
-        <div className="auth-box">
-            <h2>Zarejestruj się do IT-Tinder</h2>
-            <form onSubmit={handleRegister}>
-                <input type="text" placeholder="Nazwa użytkownika" onChange={e => setUsername(e.target.value)} required />
-                <input type="email" placeholder="Adres Email" onChange={e => setEmail(e.target.value)} required />
-                <input type="password" placeholder="Hasło" onChange={e => setPassword(e.target.value)} required />
-                <button type="submit">Załóż konto</button>
+        <div className="card card--sm">
+            <h2 className="title">Dołącz do nas</h2>
+            <p className="subtitle">Znajdź swoją technologiczną drugą połówkę</p>
+            
+            {error && <div className="alert alert--error">{error}</div>}
+            {success && <div className="alert alert--success">{success}</div>}
+
+            <form onSubmit={handleSubmit} className="form-stack">
+                <input 
+                    type="text" 
+                    placeholder="Nazwa użytkownika" 
+                    className="input"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                />
+                <input 
+                    type="email" 
+                    placeholder="Adres e-mail" 
+                    className="input"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                />
+                <input 
+                    type="password" 
+                    placeholder="Hasło" 
+                    className="input"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                />
+                <button type="submit" className="btn-primary">Zarejestruj się</button>
             </form>
-            {error && <p className="error-msg">{error}</p>}
-            {success && <p className="success-msg">{success}</p>}
-            <button onClick={onSwitch} className="switch-btn">Masz już konto? Zaloguj się</button>
+
+            <p className="hint-bottom">
+                Masz już konto?{' '}
+                <button onClick={onSwitchToLogin} className="link-switch">Zaloguj się</button>
+            </p>
         </div>
     );
 }
